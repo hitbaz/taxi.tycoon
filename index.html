@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taxi Tycoon - Jogo Incremental</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            background-color: #f4f4f6;
+            color: #2b2b2b;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+        }
+        #game-container {
+            width: 100%;
+            max-width: 800px;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-top: 6px solid #f2ba13;
+        }
+        h1 {
+            font-size: 24px;
+            color: #1a1a1a;
+            border-bottom: 2px solid #f2ba13;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        .section {
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px dashed #ccc;
+        }
+        .stats-label {
+            font-weight: bold;
+            display: inline-block;
+            width: 180px;
+        }
+        p {
+            margin: 10px 0;
+        }
+        button {
+            background-color: #fff;
+            border: 1px solid #1a1a1a;
+            color: #1a1a1a;
+            padding: 8px 15px;
+            font-size: 14px;
+            cursor: pointer;
+            margin: 5px 5px 5px 0;
+            transition: all 0.2s;
+            border-radius: 4px;
+            max-width: 100%;
+        }
+        button:hover:not(:disabled) {
+            background-color: #1a1a1a;
+            color: #fff;
+        }
+        button:disabled {
+            border-color: #ccc;
+            color: #ccc;
+            cursor: not-allowed;
+        }
+        .btn-main {
+            padding: 12px 25px;
+            font-size: 16px;
+            font-weight: bold;
+            background-color: #f2ba13;
+            border-color: #e0aa07;
+            width: 100%;
+        }
+        .btn-main:hover:not(:disabled) {
+            background-color: #1a1a1a;
+            color: #fff;
+            border-color: #1a1a1a;
+        }
+        .log-box {
+            background: #1a1a1a;
+            color: #f2ba13;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 10px;
+            height: 120px;
+            overflow-y: auto;
+            border-radius: 4px;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+        .btn-danger {
+            background-color: #fff0f0;
+            border-color: #cc0000;
+            color: #cc0000;
+            width: 100%;
+            padding: 10px;
+            font-weight: bold;
+        }
+        .btn-danger:hover:not(:disabled) {
+            background-color: #cc0000;
+            color: #fff;
+        }
+        .time-remaining {
+            font-size: 12px;
+            color: #666;
+            margin-top: -5px;
+            margin-bottom: 8px;
+            font-style: italic;
+        }
+        .lote-container {
+            margin: 2px 0 12px 0;
+            font-size: 13px;
+        }
+        .profit-negative {
+            color: #cc0000;
+            font-weight: bold;
+        }
+        .profit-positive {
+            color: #2e7d32;
+            font-weight: bold;
+        }
+        
+        @media (min-width: 600px) {
+            #game-container { padding: 30px; }
+            h1 { font-size: 26px; }
+            .btn-main { width: auto; }
+            .btn-danger { width: auto; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <h1>Taxi Tycoon <span style="font-size: 14px; color: #555; font-weight: normal;">(Gestão de Frota de Táxi)</span></h1>
+    
+    <div class="section">
+        <button class="btn-main" id="btn-make-ride">Dirigir e Atender uma Corrida</button>
+    </div>
+
+    <div class="section">
+        <h3>Finanças & Central</h3>
+        <p><span class="stats-label">Caixa da Empresa:</span> R$ <span id="funds">0.00</span></p>
+        <p><span class="stats-label">Passageiros na Fila:</span> <span id="unsold-rides">0</span><span id="max-queue-display" style="display: none;">0</span></p>
+        <p><span class="stats-label">Preço por Corrida:</span> R$ <span id="ride-price">5.00</span> 
+            <button id="btn-lower-price">Preço -0.20</button>
+            <button id="btn-raise-price">Preço +0.20</button>
+        </p>
+        <p><span class="stats-label">Salário dos Taxistas:</span> R$ <span id="wage-value">0.00</span> /s</p>
+        <p><span class="stats-label">Seguro da Frota:</span> R$ <span id="insurance-value">0.00</span> /s</p>
+        <p><span class="stats-label">Manutenção:</span> R$ <span id="maintenance-value">0.00</span> /s</p>
+        <p><span class="stats-label">Lucro líquido:</span> <span id="net-profit-display">R$ 0.00 /s</span></p>
+        <p><span class="stats-label">Demanda por Corridas:</span> <span id="demand">100</span>%</p>
+        <p><span class="stats-label">Marketing (Anúncios):</span> Nível <span id="marketing-lvl">1</span> 
+            <button id="btn-upgrade-marketing">Fazer Propaganda Digital (R$ <span id="marketing-cost">50.00</span>)</button>
+        </p>
+    </div>
+
+    <div class="section">
+        <h3>Estoque</h3>
+        <p><span class="stats-label">Estoque de Gasolina:</span> <span id="fuel">50.00</span> L</p>
+        <div class="time-remaining" id="fuel-time">Frota parada (sem motoristas)</div>
+        <button id="btn-buy-fuel">Comprar Tanque de Gasolina 50L (R$ <span id="fuel-cost">290.00</span>)</button>
+        <div class="lote-container">
+            Comprar lote para: 
+            <button id="btn-fuel-1h">1h (R$ 0.00)</button>
+            <button id="btn-fuel-2h">2h (R$ 0.00)</button>
+            <button id="btn-fuel-3h">3h (R$ 0.00)</button>
+        </div>
+        
+        <p><span class="stats-label">Óleo de Motor:</span> <span id="oil">4.00</span> L</p>
+        <div class="time-remaining" id="oil-time">Frota parada (sem motoristas)</div>
+        <button id="btn-buy-oil">Comprar Galão de Óleo 4L (R$ <span id="oil-cost">120.00</span>)</button>
+        <div class="lote-container">
+            Comprar lote para: 
+            <button id="btn-oil-1h">1h (R$ 0.00)</button>
+            <button id="btn-oil-2h">2h (R$ 0.00)</button>
+            <button id="btn-oil-3h">3h (R$ 0.00)</button>
+        </div>
+
+        <p style="font-size: 12px; color: #555; margin-top: 15px;">*Por segundo, cada carro consome exatamente: 0.15 L de combustível e 0.002 L de óleo de motor.</p>
+        <br>
+        
+        <p><span class="stats-label">Garagem (Frota):</span> Nível <span id="garages">1</span> <span style="font-size: 12px; color: #666;">(Capacidade máxima: <span id="driver-limit">10</span> taxistas)</span></p>
+        <button id="btn-buy-garage">Expandir Garagem da Frota (R$ <span id="garage-cost">500.000,00</span>)</button>
+        
+        <p><span class="stats-label">Taxistas Contratados:</span> <span id="drivers">0</span> / <span id="driver-limit-2">10</span>
+            <button id="btn-buy-driver">Contratar Taxista (Custo: R$ 1,00/s)</button>
+            <button id="btn-fire-driver">Demitir Taxista</button>
+        </p>
+    </div>
+
+    <h3>Diário de Bordo da Central</h3>
+    <div class="log-box" id="log">
+        <div style="color: #dfc5b5;">[00:00:00] Central online, carros abastecidos, hora de rodar a cidade!</div>
+    </div>
+
+    <div style="margin-top: 15px; text-align: right;">
+        <button id="btn-reset-game" class="btn-danger">Reiniciar Companhia</button>
+    </div>
+</div>
+
+<script>
+    const FUEL_PER_RIDE = 0.15; 
+    const OIL_PER_RIDE = 0.002;   
+
+    const FUEL_PER_PACK = 50; 
+    const OIL_PER_PACK = 4;   
+
+    let unsoldRides = 0;
+    let funds = 0.00;
+    let ridePrice = 5.00; 
+    let baseDemand = 100; // Demanda base afetada por marketing
+    let demand = 100;     // Demanda final calculada
+    let marketingLvl = 1;
+    let marketingCost = 50.00;
+    
+    let fuel = 50.00;  let fuelCost = 290.00;
+    let oil = 4.00;    let oilCost = 120.00;
+
+    let garages = 1; 
+    let garageCost = 500000.00;
+    let drivers = 0;
+    let bankruptTimer = 0; 
+
+    const fmtMoeda = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtInt = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
+    const fmtFloat = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    let lastTickTime = Date.now();
+    let lastOneSecondTickTime = Date.now();
+
+    const elUnsoldRides = document.getElementById('unsold-rides');
+    const elFunds = document.getElementById('funds');
+    const elRidePrice = document.getElementById('ride-price');
+    const elWageValue = document.getElementById('wage-value');
+    const elInsuranceValue = document.getElementById('insurance-value');
+    const elMaintenanceValue = document.getElementById('maintenance-value');
+    const elNetProfitDisplay = document.getElementById('net-profit-display');
+    const elDemand = document.getElementById('demand');
+    const elMarketingLvl = document.getElementById('marketing-lvl');
+    const elMarketingCost = document.getElementById('marketing-cost');
+    const elMaxQueueDisplay = document.getElementById('max-queue-display');
+    
+    const elFuel = document.getElementById('fuel');
+    const elFuelCost = document.getElementById('fuel-cost');
+    const elOil = document.getElementById('oil');
+    const elOilCost = document.getElementById('oil-cost');
+
+    const elFuelTime = document.getElementById('fuel-time');
+    const elOilTime = document.getElementById('oil-time');
+
+    const elGarages = document.getElementById('garages');
+    const elGarageCost = document.getElementById('garage-cost');
+    const elDriverLimit = document.getElementById('driver-limit');
+    const elDriverLimit2 = document.getElementById('driver-limit-2');
+    const elDrivers = document.getElementById('drivers');
+    const elLog = document.getElementById('log');
+
+    const btnMakeRide = document.getElementById('btn-make-ride');
+    const btnLowerPrice = document.getElementById('btn-lower-price');
+    const btnRaisePrice = document.getElementById('btn-raise-price');
+    const btnUpgradeMarketing = document.getElementById('btn-upgrade-marketing');
+    const btnBuyFuel = document.getElementById('btn-buy-fuel');
+    const btnBuyOil = document.getElementById('btn-buy-oil');
+    const btnBuyGarage = document.getElementById('btn-buy-garage');
+    const btnBuyDriver = document.getElementById('btn-buy-driver');
+    const btnFireDriver = document.getElementById('btn-fire-driver');
+    const btnResetGame = document.getElementById('btn-reset-game');
+
+    const btnFuel1h = document.getElementById('btn-fuel-1h');
+    const btnFuel2h = document.getElementById('btn-fuel-2h');
+    const btnFuel3h = document.getElementById('btn-fuel-3h');
+    const btnOil1h = document.getElementById('btn-oil-1h');
+    const btnOil2h = document.getElementById('btn-oil-2h');
+    const btnOil3h = document.getElementById('btn-oil-3h');
+
+    function logMessage(text) {
+        const time = new Date().toLocaleTimeString();
+        elLog.innerHTML += `<div>[${time}] ${text}</div>`;
+        elLog.scrollTop = elLog.scrollHeight;
+    }
+
+    // Calcula a demanda dinamicamente de acordo com o Preço vs Preço Base (R$ 5.00)
+    function calculateDemand() {
+        let priceRatio = ridePrice / 5.00;
+        // Elasticidade de preço: Se o preço sobe, a demanda cai drasticamente ao quadrado
+        let calculated = baseDemand / Math.pow(priceRatio, 2);
+        
+        if (ridePrice > 25.00) {
+            // Zera completamente a demanda para preços abusivos
+            calculated = 0;
+        }
+        
+        demand = Math.max(0, Math.min(500, calculated));
+        return demand;
+    }
+
+    function getMaxQueue() {
+        let baseCapacity = drivers > 0 ? drivers : 1; 
+        let multiplier = calculateDemand() / 100;
+        // Permite chegar a zero sem piso mínimo artificial
+        return Math.max(0, baseCapacity * multiplier);
+    }
+
+    function saveGame() {
+        const gameState = {
+            unsoldRides, funds, ridePrice, baseDemand, demand,
+            marketingLvl, marketingCost, fuel, fuelCost,
+            oil, oilCost, garages, garageCost, drivers, lastSaveTime: Date.now()
+        };
+        localStorage.setItem('taxitycoon_save', JSON.stringify(gameState));
+    }
+
+    function formatTime(seconds) {
+        if (seconds <= 0 || isNaN(seconds) || !isFinite(seconds)) return "Esgotado!";
+        
+        let h = Math.floor(seconds / 3600);
+        let m = Math.floor((seconds % 3600) / 60);
+        let s = Math.floor(seconds % 60);
+
+        let result = "Dura aprox. ";
+        if (h > 0) result += `${h}h `;
+        if (m > 0 || h > 0) result += `${m}m `;
+        result += `${s}s`;
+        return result;
+    }
+
+    function getDriverCostPerSecond(driverIndex) {
+        let levelTier = Math.floor(driverIndex / 10) + 1;
+        return levelTier * 1.0;
+    }
+
+    function getTotalWagePerSecond() {
+        let total = 0;
+        for (let i = 0; i < drivers; i++) {
+            total += getDriverCostPerSecond(i);
+        }
+        return total;
+    }
+
+    function getDriverUtilityCost(driverIndex) {
+        let levelTier = Math.floor(driverIndex / 10);
+        return {
+            maintenance: 0.01 + (levelTier * 0.01),
+            insurance: 0.03 + (levelTier * 0.01)
+        };
+    }
+
+    function getUtilityCostsPerSecond() {
+        let maintenanceTotal = 0;
+        let insuranceTotal = 0;
+
+        if (drivers > 0 && hasInsumosForProduction()) {
+            for (let i = 0; i < drivers; i++) {
+                let cost = getDriverUtilityCost(i);
+                maintenanceTotal += cost.maintenance;
+                insuranceTotal += cost.insurance;
+            }
+        }
+        return { maintenance: maintenanceTotal, insurance: insuranceTotal };
+    }
+
+    function hasInsumosForProduction() {
+        let productionPerTick = drivers * 0.1;
+        return fuel >= (productionPerTick * FUEL_PER_RIDE) && 
+               oil >= (productionPerTick * OIL_PER_RIDE);
+    }
+
+    function processOfflineTime(timePassedInSeconds) {
+        if (timePassedInSeconds <= 1 || drivers <= 0) return;
+
+        let initialDrivers = drivers;
+        let driversFiredOffline = 0;
+        let secondsFailing = 0;
+
+        for (let t = 0; t < timePassedInSeconds; t++) {
+            if (drivers <= 0) break;
+
+            let productionInTick = drivers * 1.0;
+            let hasIngredients = fuel >= (productionInTick * FUEL_PER_RIDE) && 
+                                 oil >= (productionInTick * OIL_PER_RIDE);
+
+            if (hasIngredients) {
+                unsoldRides += productionInTick;
+                fuel -= (productionInTick * FUEL_PER_RIDE);
+                oil -= (productionInTick * OIL_PER_RIDE);
+                
+                let maxQueue = getMaxQueue();
+                if (unsoldRides > maxQueue) unsoldRides = maxQueue;
+            }
+
+            if (unsoldRides > 0 && hasIngredients) {
+                let maxQueue = getMaxQueue();
+                let sold = Math.min(unsoldRides, maxQueue);
+
+                unsoldRides -= sold;
+                let revenue = sold * ridePrice;
+                funds += revenue;
+            }
+
+            let currentWages = getTotalWagePerSecond();
+            let offlineUtility = { maintenance: 0, insurance: 0 };
+            
+            if (hasIngredients) {
+                for (let i = 0; i < drivers; i++) {
+                    let c = getDriverUtilityCost(i);
+                    offlineUtility.maintenance += c.maintenance;
+                    offlineUtility.insurance += c.insurance;
+                }
+            }
+            
+            let totalCostThisSecond = currentWages + offlineUtility.maintenance + offlineUtility.insurance;
+
+            if (funds >= totalCostThisSecond) {
+                funds -= totalCostThisSecond;
+                secondsFailing = 0; 
+            } else {
+                funds = 0.00;
+                secondsFailing++;
+                
+                if (secondsFailing >= 3) {
+                    drivers--;
+                    driversFiredOffline++;
+                    secondsFailing = 0;
+                }
+            }
+        }
+
+        if (driversFiredOffline > 0) {
+            if (drivers === 0 && initialDrivers > 0) {
+                logMessage(`[CRISE OPERACIONAL] Você faliu enquanto estava ausente! Todos os seus ${initialDrivers} taxistas se demitiram.`);
+            } else {
+                logMessage(`[GREVE] Devido a períodos sem saldo, ${driversFiredOffline} motorista(s) abandonaram o turno durante sua ausência. Restaram: ${drivers}.`);
+            }
+        }
+        updateUI();
+    }
+
+    function loadGame() {
+        const savedData = localStorage.getItem('taxitycoon_save');
+        if (savedData) {
+            const gameState = JSON.parse(savedData);
+            unsoldRides = gameState.unsoldRides ?? 0;
+            funds = gameState.funds ?? 0;
+            ridePrice = gameState.ridePrice ?? 5.00;
+            baseDemand = gameState.baseDemand ?? 100;
+            marketingLvl = gameState.marketingLvl ?? 1;
+            marketingCost = gameState.marketingCost ?? 50;
+            fuel = gameState.fuel ?? 50.00;
+            fuelCost = gameState.fuelCost ?? 290.00;
+            oil = gameState.oil ?? 4.00;
+            oilCost = gameState.oilCost ?? 120.00;
+            
+            garages = gameState.garages ?? 1;
+            garageCost = gameState.garageCost ?? (garages * 500000.00);
+            drivers = gameState.drivers ?? 0;
+
+            elLog.innerHTML = "";
+
+            if (gameState.lastSaveTime) {
+                const timePassedInSeconds = Math.floor((Date.now() - gameState.lastSaveTime) / 1000);
+                processOfflineTime(timePassedInSeconds);
+            }
+        }
+        calculateDemand();
+        lastTickTime = Date.now();
+        lastOneSecondTickTime = Date.now();
+    }
+
+    function getFuelLoteConfig(hours) {
+        let totalLitresNeeded = drivers * FUEL_PER_RIDE * 3600 * hours;
+        let cost = (totalLitresNeeded / FUEL_PER_PACK) * fuelCost;
+        return { litres: totalLitresNeeded, cost: cost };
+    }
+
+    function getOilLoteConfig(hours) {
+        let totalLitresNeeded = drivers * OIL_PER_RIDE * 3600 * hours;
+        let cost = (totalLitresNeeded / OIL_PER_PACK) * oilCost;
+        return { litres: totalLitresNeeded, cost: cost };
+    }
+
+    function updateUI() {
+        calculateDemand();
+        let maxDriversAllowed = garages * 10;
+        let currentTotalWage = getTotalWagePerSecond();
+        let currentUtilities = getUtilityCostsPerSecond();
+
+        elUnsoldRides.innerText = fmtInt.format(Math.floor(unsoldRides));
+        elFunds.innerText = fmtMoeda.format(funds);
+        elRidePrice.innerText = fmtMoeda.format(ridePrice);
+        elWageValue.innerText = fmtMoeda.format(currentTotalWage);
+        elInsuranceValue.innerText = fmtMoeda.format(currentUtilities.insurance);
+        elMaintenanceValue.innerText = fmtMoeda.format(currentUtilities.maintenance);
+        elDemand.innerText = fmtInt.format(Math.floor(demand));
+        elMarketingLvl.innerText = fmtInt.format(marketingLvl);
+        elMarketingCost.innerText = fmtMoeda.format(marketingCost);
+        elMaxQueueDisplay.innerText = fmtInt.format(getMaxQueue());
+        
+        // Lucro Líquido Matemático Preciso
+        if (drivers >= 1) {
+            let maxQueue = getMaxQueue();
+            let productionPerSec = drivers * 1.0;
+            
+            // Taxa real de passageiros atendidos por segundo conforme a demanda
+            let salesRatePerSec = hasInsumosForProduction() ? Math.min(productionPerSec, maxQueue) : 0;
+            
+            let revenuePerSec = salesRatePerSec * ridePrice;
+            let totalExpensesPerSec = currentTotalWage + currentUtilities.maintenance + currentUtilities.insurance;
+            let netProfitPerSec = revenuePerSec - totalExpensesPerSec;
+
+            if (netProfitPerSec < 0) {
+                let absoluteVal = Math.abs(netProfitPerSec);
+                elNetProfitDisplay.innerText = `-R$ ${fmtMoeda.format(absoluteVal)} /s`;
+                elNetProfitDisplay.className = "profit-negative";
+            } else {
+                elNetProfitDisplay.innerText = `R$ ${fmtMoeda.format(netProfitPerSec)} /s`;
+                elNetProfitDisplay.className = "profit-positive";
+            }
+        } else {
+            elNetProfitDisplay.innerText = "R$ 0.00 /s";
+            elNetProfitDisplay.className = "";
+        }
+
+        elFuel.innerText = fmtFloat.format(fuel);
+        elFuelCost.innerText = fmtMoeda.format(fuelCost);
+        elOil.innerText = fmtFloat.format(oil);
+        elOilCost.innerText = fmtMoeda.format(oilCost);
+
+        if (drivers < maxDriversAllowed) {
+            let nextDriverCost = getDriverCostPerSecond(drivers);
+            btnBuyDriver.innerText = `Contratar Taxista (Custo: R$ ${fmtMoeda.format(nextDriverCost)}/s)`;
+        } else {
+            btnBuyDriver.innerText = "Contratar Taxista (Limite atingido)";
+        }
+
+        if (drivers > 0) {
+            let viagensPorSegundo = drivers * 1.0; 
+            
+            if (hasInsumosForProduction()) {
+                elFuelTime.innerText = formatTime(fuel / (viagensPorSegundo * FUEL_PER_RIDE));
+                elOilTime.innerText = formatTime(oil / (viagensPorSegundo * OIL_PER_RIDE));
+            } else {
+                elFuelTime.innerText = "Falta de combustível ou óleo! Frota parada.";
+                elOilTime.innerText = "Falta de combustível ou óleo! Frota parada.";
+            }
+        } else {
+            elFuelTime.innerText = "Frota parada (sem motoristas)";
+            elOilTime.innerText = "Frota parada (sem motoristas)";
+        }
+
+        elGarages.innerText = fmtInt.format(garages);
+        elGarageCost.innerText = fmtMoeda.format(garageCost);
+        elDriverLimit.innerText = fmtInt.format(maxDriversAllowed);
+        elDriverLimit2.innerText = fmtInt.format(maxDriversAllowed);
+        elDrivers.innerText = fmtInt.format(drivers);
+
+        btnBuyFuel.disabled = funds < fuelCost;
+        btnBuyOil.disabled = funds < oilCost;
+        btnBuyGarage.disabled = funds < garageCost;
+        btnUpgradeMarketing.disabled = funds < marketingCost;
+        
+        btnBuyDriver.disabled = (drivers >= maxDriversAllowed);
+        btnFireDriver.disabled = (drivers <= 0);
+        btnMakeRide.disabled = (fuel < FUEL_PER_RIDE || oil < OIL_PER_RIDE);
+
+        let f1 = getFuelLoteConfig(1), f2 = getFuelLoteConfig(2), f3 = getFuelLoteConfig(3);
+        btnFuel1h.innerText = `1h (R$ ${fmtMoeda.format(f1.cost)})`;
+        btnFuel2h.innerText = `2h (R$ ${fmtMoeda.format(f2.cost)})`;
+        btnFuel3h.innerText = `3h (R$ ${fmtMoeda.format(f3.cost)})`;
+        btnFuel1h.disabled = drivers <= 0 || funds < f1.cost;
+        btnFuel2h.disabled = drivers <= 0 || funds < f2.cost;
+        btnFuel3h.disabled = drivers <= 0 || funds < f3.cost;
+
+        let s1 = getOilLoteConfig(1), s2 = getOilLoteConfig(2), s3 = getOilLoteConfig(3);
+        btnOil1h.innerText = `1h (R$ ${fmtMoeda.format(s1.cost)})`;
+        btnOil2h.innerText = `2h (R$ ${fmtMoeda.format(s2.cost)})`;
+        btnOil3h.innerText = `3h (R$ ${fmtMoeda.format(s3.cost)})`;
+        btnOil1h.disabled = drivers <= 0 || funds < s1.cost;
+        btnOil2h.disabled = drivers <= 0 || funds < s2.cost;
+        btnOil3h.disabled = drivers <= 0 || funds < s3.cost;
+    }
+
+    btnMakeRide.addEventListener('click', () => {
+        if (fuel >= FUEL_PER_RIDE && oil >= OIL_PER_RIDE) {
+            let maxQueue = getMaxQueue();
+            if (unsoldRides < maxQueue) {
+                unsoldRides++;
+            }
+            fuel -= FUEL_PER_RIDE;
+            oil -= OIL_PER_RIDE;
+            updateUI();
+            saveGame();
+        }
+    });
+
+    btnLowerPrice.addEventListener('click', () => {
+        if (ridePrice > 0.20) { 
+            ridePrice = Math.round((ridePrice - 0.20) * 100) / 100; 
+            updateUI(); 
+            saveGame();
+        }
+    });
+
+    btnRaisePrice.addEventListener('click', () => {
+        if (ridePrice < 100.00) {
+            ridePrice = Math.round((ridePrice + 0.20) * 100) / 100; 
+            updateUI();
+            saveGame();
+        }
+    });
+
+    btnUpgradeMarketing.addEventListener('click', () => {
+        if (funds >= marketingCost) {
+            funds -= marketingCost;
+            marketingLvl++;
+            marketingCost *= 2.2;
+            logMessage(`Campanha de marketing expandida (Nível ${marketingLvl}). Mais passageiros chamando táxi!`);
+            baseDemand *= 1.25; 
+            updateUI(); 
+            saveGame();
+        }
+    });
+
+    btnBuyFuel.addEventListener('click', () => {
+        if (funds >= fuelCost) {
+            funds -= fuelCost; fuel += FUEL_PER_PACK;
+            fuelCost = 260 + Math.random() * 40; 
+            updateUI(); saveGame();
+        }
+    });
+
+    btnBuyOil.addEventListener('click', () => {
+        if (funds >= oilCost) {
+            funds -= oilCost; oil += OIL_PER_PACK;
+            oilCost = 100 + Math.random() * 30; 
+            updateUI(); saveGame();
+        }
+    });
+
+    btnFuel1h.addEventListener('click', () => {
+        let config = getFuelLoteConfig(1);
+        if (funds >= config.cost) { funds -= config.cost; fuel += config.litres; updateUI(); saveGame(); }
+    });
+    btnFuel2h.addEventListener('click', () => {
+        let config = getFuelLoteConfig(2);
+        if (funds >= config.cost) { funds -= config.cost; fuel += config.litres; updateUI(); saveGame(); }
+    });
+    btnFuel3h.addEventListener('click', () => {
+        let config = getFuelLoteConfig(3);
+        if (funds >= config.cost) { funds -= config.cost; fuel += config.litres; updateUI(); saveGame(); }
+    });
+
+    btnOil1h.addEventListener('click', () => {
+        let config = getOilLoteConfig(1);
+        if (funds >= config.cost) { funds -= config.cost; oil += config.litres; updateUI(); saveGame(); }
+    });
+    btnOil2h.addEventListener('click', () => {
+        let config = getOilLoteConfig(2);
+        if (funds >= config.cost) { funds -= config.cost; oil += config.litres; updateUI(); saveGame(); }
+    });
+    btnOil3h.addEventListener('click', () => {
+        let config = getOilLoteConfig(3);
+        if (funds >= config.cost) { funds -= config.cost; oil += config.litres; updateUI(); saveGame(); }
+    });
+
+    btnBuyGarage.addEventListener('click', () => {
+        if (funds >= garageCost) {
+            funds -= garageCost;
+            garages++;
+            garageCost = garages * 500000.00; 
+            logMessage(`Garagem expandida! Nível atual: ${garages}. Capacidade máxima de até ${garages * 10} taxistas.`);
+            
+            if (garages === 3) {
+                logMessage(`Nova cooperativa de táxis ou app concorrente entrou na região! A demanda caiu pela metade.`);
+                baseDemand *= 0.5; 
+            }
+            
+            updateUI(); saveGame();
+        }
+    });
+
+    btnBuyDriver.addEventListener('click', () => {
+        if (drivers < garages * 10) {
+            drivers++;
+            logMessage(`Taxista número #${drivers} contratado.`);
+            updateUI(); saveGame();
+        }
+    });
+
+    btnFireDriver.addEventListener('click', () => {
+        if (drivers > 0) {
+            logMessage(`Taxista número #${drivers} foi demitido para conter gastos da frota.`);
+            drivers--;
+            let maxQueue = getMaxQueue();
+            if (unsoldRides > maxQueue) unsoldRides = maxQueue;
+            updateUI(); saveGame();
+        }
+    });
+
+    btnResetGame.addEventListener('click', () => {
+        if (confirm("Tem certeza que deseja fechar sua companhia e reiniciar do absoluto zero? Todo seu capital, garagens e motoristas serão perdidos.")) {
+            localStorage.removeItem('taxitycoon_save');
+            unsoldRides = 0; funds = 0.00; ridePrice = 5.00; baseDemand = 100; demand = 100;
+            marketingLvl = 1; marketingCost = 50.00; 
+            fuel = 50.00; fuelCost = 290.00; oil = 4.00; oilCost = 120.00; 
+            garages = 1; garageCost = 500000.00; drivers = 0; bankruptTimer = 0;
+            elLog.innerHTML = `<div style="color: #dfc5b5;">[00:00:00] Central online, carros abastecidos, hora de rodar a cidade!</div>`;
+            updateUI();
+        }
+    });
+
+    // Loop de Produção (100ms)
+    setInterval(() => {
+        let now = Date.now();
+        let elapsedMs = now - lastTickTime;
+        lastTickTime = now;
+
+        if (elapsedMs > 2000) return; 
+
+        if (drivers > 0) {
+            let ticksCount = elapsedMs / 100; 
+            let productionPerTick = (drivers * 0.1) * ticksCount; 
+            
+            let requiredFuel = productionPerTick * FUEL_PER_RIDE;
+            let requiredOil = productionPerTick * OIL_PER_RIDE;
+
+            if (fuel >= requiredFuel && oil >= requiredOil) {
+                unsoldRides += productionPerTick;
+                
+                let maxQueue = getMaxQueue();
+                if (unsoldRides > maxQueue) {
+                    unsoldRides = maxQueue;
+                }
+                
+                fuel -= requiredFuel;
+                oil -= requiredOil;
+                updateUI();
+            }
+        }
+    }, 100);
+
+    // Loop de Vendas e Pagamentos (1s)
+    setInterval(() => {
+        let now = Date.now();
+        let elapsedMs = now - lastOneSecondTickTime;
+        
+        if (elapsedMs < 1000) return; 
+        
+        let secondsElapsed = Math.floor(elapsedMs / 1000);
+        lastOneSecondTickTime = now;
+
+        if (secondsElapsed > 2) return; 
+
+        for (let i = 0; i < secondsElapsed; i++) {
+            if (drivers > 0) {
+                let totalWagesToPay = getTotalWagePerSecond();
+                let currentUtilities = getUtilityCostsPerSecond(); 
+                
+                let totalBillsThisSecond = totalWagesToPay + currentUtilities.maintenance + currentUtilities.insurance;
+                
+                if (funds >= totalBillsThisSecond) {
+                    funds -= totalBillsThisSecond;
+                    bankruptTimer = 0; 
+                } else {
+                    funds = 0.00; 
+                }
+            }
+
+            if (unsoldRides > 0 && hasInsumosForProduction()) {
+                let maxQueue = getMaxQueue();
+                let sold = Math.min(unsoldRides, maxQueue);
+                unsoldRides -= sold;
+                funds += (sold * ridePrice);
+            }
+        }
+        updateUI();
+    }, 1000);
+
+    // Auto-save a cada 5s
+    setInterval(() => {
+        saveGame();
+    }, 5000);
+
+    window.onload = () => {
+        loadGame();
+        updateUI();
+    };
+</script>
+</body>
+</html>
