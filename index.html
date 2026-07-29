@@ -283,18 +283,19 @@
         elLog.scrollTop = elLog.scrollHeight;
     }
 
-    // Calcula a demanda dinamicamente de acordo com o Preço vs Preço Base (R$ 5.00)
+    // Função de demanda ajustada sem corte abrupto nos R$ 25,00
     function calculateDemand() {
         let priceRatio = ridePrice / 5.00;
-        // Elasticidade de preço: Se o preço sobe, a demanda cai drasticamente ao quadrado
-        let calculated = baseDemand / Math.pow(priceRatio, 2);
         
-        if (ridePrice > 25.00) {
-            // Zera completamente a demanda para preços abusivos
-            calculated = 0;
+        // Curva suave de elasticidade usando potência 1.5
+        let calculated = baseDemand / Math.pow(priceRatio, 1.5);
+        
+        // Decaimento suave apenas para valores muito elevados (acima de R$ 50,00)
+        if (ridePrice > 50.00) {
+            calculated *= Math.max(0, 1 - ((ridePrice - 50.00) / 50.00));
         }
         
-        demand = Math.max(0, Math.min(500, calculated));
+        demand = Math.max(0, calculated);
         return demand;
     }
 
